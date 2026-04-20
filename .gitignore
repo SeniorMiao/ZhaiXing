@@ -1,0 +1,54 @@
+# --- Secrets / local overrides ---
+.env
+.env.*
+!.env.example
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+.cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+ZX/
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Logs ---
+*.log
+
+# --- Local runtime data ---
+storage/
+
+# --- Flutter / Dart (mobile/) ---
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/.pub-cache/
+mobile/build/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+
+# --- Android / iOS build artifacts (in case checked in) ---
+*.apk
+*.aab
+*.ipa
+

@@ -1,0 +1,34 @@
+services:
+  mysql:
+    image: m.daocloud.io/docker.io/library/mysql:8.0
+    container_name: zx-meeting-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: meeting_assistant
+      MYSQL_USER: zx
+      MYSQL_PASSWORD: zxpass
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    volumes:
+      - zx_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: m.daocloud.io/docker.io/library/redis:7-alpine
+    container_name: zx-meeting-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+volumes:
+  zx_mysql_data:
+
