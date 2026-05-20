@@ -6,8 +6,28 @@ $androidRoot = Split-Path -Parent $here
 $wrapperDir = Join-Path $androidRoot "gradle\wrapper"
 $null = New-Item -ItemType Directory -Force -Path $wrapperDir
 $out = Join-Path $wrapperDir "gradle-8.14-all.zip"
-$url = "https://services.gradle.org/distributions/gradle-8.14-all.zip"
-Write-Host "Downloading to $out ..."
-# --ssl-no-revoke：部分 Windows 会出现 CRYPT_E_NO_REVOCATION_CHECK，导致默认校验失败
-curl.exe -fL --ssl-no-revoke --retry 3 --connect-timeout 30 "$url" -o "$out"
+$urls = @(
+    "https://services.gradle.org/distributions/gradle-8.14-all.zip",
+    "https://mirrors.cloud.tencent.com/gradle/gradle-8.14-all.zip",
+    "https://mirrors.tuna.tsinghua.edu.cn/gradle/gradle-8.14-all.zip"
+)
+$ok = $false
+foreach ($url in $urls) {
+    Write-Host "Downloading from $url"
+    Write-Host "  -> $out"
+    try {
+        curl.exe -fL --ssl-no-revoke --retry 3 --connect-timeout 60 "$url" -o "$out"
+        if ((Test-Path $out) -and (Get-Item $out).Length -gt 50MB) {
+            $ok = $true
+            break
+        }
+        Write-Warning "文件过小，尝试下一镜像..."
+    }
+    catch {
+        Write-Warning $_.Exception.Message
+    }
+}
+if (-not $ok) {
+    throw "下载失败。请浏览器打开 https://services.gradle.org/distributions/gradle-8.14-all.zip 保存到: $out"
+}
 Write-Host "OK: $((Get-Item $out).Length) bytes"

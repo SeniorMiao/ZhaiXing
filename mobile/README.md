@@ -24,6 +24,26 @@ flutter run --dart-define=API_BASE_URL=http://192.168.1.8:8000
 - **真机**：请使用电脑的**局域网 IP**，且 PC 上启动 API 时使用 `uvicorn main:app --host 0.0.0.0 --port 8000`。
 - **Android 模拟器**访问本机：`http://10.0.2.2:8000`。
 
+## Android Studio 运行（模拟器）
+
+1. **File → Open** 选本目录 `mobile`（不要打开上一级 `ZhaiXing`）。
+2. 安装插件：**Flutter** + **Dart**（Settings → Plugins），并配置 Flutter SDK：`D:\01_Dev\Environment\FlutterSDK`（安装脚本见仓库 `scripts\install-flutter.ps1`）。
+3. 等待索引结束，终端执行 `flutter pub get`。
+4. 运行配置（任选一种）：
+   - 顶部下拉应出现 **`ZhaiXing (Android Emulator)`**（见 `.idea/runConfigurations/`，已带 `10.0.2.2:8000`）。选模拟器后点 Run。
+   - 或 **Run → Edit Configurations → + → Flutter**（若没有 Flutter 项，说明插件未装好）：
+     - Dart entrypoint: `lib/main.dart`
+     - Additional run args: `--dart-define=API_BASE_URL=http://10.0.2.2:8000`
+   - 或在左侧 **`lib/main.dart` 右键 → Run 'main.dart'**，再在配置里补上 Additional run args。
+5. PC 上先执行 `D:\03_Projects\Homework\ZhaiXing\start-dev.cmd` 启动 API + Worker。
+
+命令行（不依赖 Android Studio 配置）：
+
+```powershell
+cd mobile
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000
+```
+
 ## Android 明文 HTTP（调试用）
 
 若使用 `http://` 而非 `https`，生成 `android` 后请在 `android/app/src/main/AndroidManifest.xml` 的 `<application>` 上增加：
@@ -52,10 +72,49 @@ flutter run --dart-define=API_BASE_URL=http://192.168.1.8:8000
 https://services.gradle.org/distributions/gradle-8.14-all.zip  
 若浏览器能下、命令行不能，基本可确定是 **Java 信任库/所用 JDK** 问题，优先完成步骤 1～2。
 
-### 使用本地 Gradle zip（推荐，已写进工程）
+### Kotlin 编译报 `different roots` / Daemon compilation failed
 
-`gradle-wrapper.properties` 使用 **`distributionUrl=gradle-8.14-all.zip`**（与 `gradle-wrapper.properties` **同目录**），**不再用 Java 下载 services.gradle.org**，可绕过 PKIX。
+项目在 **D:** 盘而 Pub Cache 默认在 **C:** 盘时，Kotlin 增量编译会失败。已在本仓库 `android/gradle.properties` 中设置 `kotlin.incremental=false`。
 
-1. 将 `gradle-8.14-all.zip` 放到 **`mobile/android/gradle/wrapper/`**（与 `gradle-wrapper.properties` 同级）。  
-2. 可用浏览器下载后复制；或在 `mobile/android` 下执行：`.\local-gradle\download_gradle.ps1`（内含 `curl --ssl-no-revoke`）。  
-3. 再执行 `flutter run`。
+建议将 Pub Cache 也放到 D 盘（与 `scripts/env-paths.ps1` 一致）：
+
+```powershell
+# 用户环境变量（需重开终端 / Android Studio）
+PUB_CACHE=D:\01_Dev\Environment\PubCache
+```
+
+然后：
+
+```powershell
+cd mobile
+flutter clean
+flutter pub get
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000
+```
+
+### Android NDK / SDK 许可未接受
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ..\scripts\accept-android-licenses.ps1
+```
+
+或在 Android Studio：**Settings → Languages & Frameworks → Android SDK → SDK Tools**，勾选 **NDK** 与 **Android SDK Command-line Tools** 后 Apply。
+
+### 找不到 `gradle-8.14-all.zip`（FileNotFoundException）
+
+默认已改为 **腾讯云镜像** 在线下载（`gradle-wrapper.properties`），一般**不需要**手动放 zip。直接再执行：
+
+```powershell
+cd mobile
+flutter clean
+flutter pub get
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000
+```
+
+若仍报 **PKIX / SSL**，再改用**本地 zip**（与 `gradle-wrapper.properties` 同目录）：
+
+1. 将 `gradle-wrapper.properties` 里 `distributionUrl` 改回：`gradle-8.14-all.zip`
+2. 下载完整包（约 214MB）到 `mobile/android/gradle/wrapper/`：  
+   执行 `.\android\local-gradle\download_gradle.ps1`，或浏览器打开  
+   https://mirrors.cloud.tencent.com/gradle/gradle-8.14-all.zip  
+3. 确认文件约 **200MB+**（不完整的小文件会再次报错），再 `flutter run`

@@ -35,6 +35,9 @@ Desktop.ini
 # --- Local runtime data ---
 storage/
 
+# --- Vendored ML repos (clone via scripts/install-3dspeaker.ps1) ---
+third_party/3D-Speaker/
+
 # --- Flutter / Dart (mobile/) ---
 mobile/.dart_tool/
 mobile/.flutter-plugins

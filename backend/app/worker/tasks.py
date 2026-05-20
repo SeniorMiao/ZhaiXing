@@ -10,7 +10,8 @@ from ..models.enums import JobStage, JobState, MeetingStatus
 from ..models.job import Job
 from ..models.meeting import MediaFile, Meeting, MeetingSummary
 from ..models.transcript import TranscriptSegment
-from ..services.asr import transcribe_with_faster_whisper
+from ..services.asr import release_asr_model, transcribe_with_faster_whisper
+from ..services.diarization import assign_speaker_labels, diarize_audio
 from ..services.media import object_key_to_local_path
 from ..services.summarize import summarize_fallback, summarize_with_zhipu
 from .celery_app import celery_app
@@ -63,7 +64,27 @@ def process_meeting_job(job_id: int) -> None:
         )
 
         _update_job(db, job, stage=JobStage.asr.value, progress=35)
-        asr_segments = transcribe_with_faster_whisper(wav_path, settings.asr_model, settings.hf_endpoint)
+        asr_segments = transcribe_with_faster_whisper(
+            wav_path,
+            settings.asr_model,
+            settings.hf_endpoint,
+            language=settings.asr_language,
+            initial_prompt=settings.asr_initial_prompt,
+            chunk_seconds=settings.asr_chunk_seconds,
+        )
+        release_asr_model()
+
+        speaker_labels: list[str]
+        if settings.diarization_enabled:
+            _update_job(db, job, stage=JobStage.diarization.value, progress=55)
+            diar_segments = diarize_audio(
+                wav_path,
+                model_cache_dir=settings.diarization_model_cache,
+                speaker_num=settings.diarization_speaker_num,
+            )
+            speaker_labels = assign_speaker_labels(asr_segments, diar_segments)
+        else:
+            speaker_labels = ["Speaker A"] * len(asr_segments)
 
         _update_job(db, job, stage=JobStage.align.value, progress=70)
         db.query(TranscriptSegment).filter(TranscriptSegment.meeting_id == meeting.id).delete()
@@ -73,16 +94,16 @@ def process_meeting_job(job_id: int) -> None:
                     meeting_id=meeting.id,
                     start_ms=s.start_ms,
                     end_ms=s.end_ms,
-                    speaker_label="Speaker A",
+                    speaker_label=spk,
                     text=s.text,
                 )
-                for s in asr_segments
+                for s, spk in zip(asr_segments, speaker_labels)
             ]
         )
         db.commit()
 
         _update_job(db, job, stage=JobStage.summarize.value, progress=90)
-        full_text = "\n".join([f"Speaker A: {s.text}" for s in asr_segments])
+        full_text = "\n".join([f"{spk}: {s.text}" for s, spk in zip(asr_segments, speaker_labels)])
         if settings.zhipu_api_key:
             sum_res = summarize_with_zhipu(full_text=full_text, api_key=settings.zhipu_api_key, model=settings.zhipu_model)
         else:
